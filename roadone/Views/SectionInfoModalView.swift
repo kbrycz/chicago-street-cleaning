@@ -54,13 +54,12 @@ struct SectionInfoModalView: View {
                         .lineSpacing(8)
                 } else {
 
-                    // Cleaning Dates List
-                    VStack(alignment: .center, spacing: 8) {  // Changed alignment to .center
+                    VStack(alignment: .center, spacing: 8) {
                         ForEach(nextDates, id: \.self) { date in
                             Text(dateString(from: date))
                                 .font(.custom("Quicksand-Medium", size: 18))
-                                .foregroundColor(.black)
-                                .multilineTextAlignment(.center) // Center the text
+                                .foregroundColor(color(for: date))
+                                .multilineTextAlignment(.center)
                         }
                     }
                     .padding(.horizontal)
@@ -142,16 +141,20 @@ struct SectionInfoModalView: View {
         return content
     }
 
-    // Helper function to determine the color based on urgency
     private func color(for date: Date) -> Color {
         let calendar = Calendar.current
-        let today = Date()
-        if let days = calendar.dateComponents([.day], from: today, to: date).day {
-            if days <= 3 {
-                return .red
-            } else if days <= 7 {
-                return .yellow
-            }
+        let startOfToday = calendar.startOfDay(for: Date())
+        let startOfDate = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: startOfToday, to: startOfDate).day ?? 0
+
+        if days >= 0 && days <= 3 {
+            return .red
+        } else if days >= 4 && days <= 7 {
+            return .orange
+        } else if days == -1 {
+            return .red
+        } else if days == -2 {
+            return .orange
         }
         return .black
     }

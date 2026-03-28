@@ -18,30 +18,55 @@ class Section: Identifiable, ObservableObject {
     }
 
     func nextCleaningDates() -> [Date] {
-        let today = Date()
         let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
 
-        // 1. Filter to keep only those that are either in the future
-        //    or up to one week in the past
-        let relevant = cleaningDates.filter { date in
-            if date >= today {
-                return true
-            } else {
-                // If in the past, keep if within last 7 days
-                if let diff = calendar.dateComponents([.day], from: date, to: today).day,
-                   diff <= 7 {
-                    return true
-                }
-                return false
+        let futureDates = cleaningDates
+            .filter { calendar.startOfDay(for: $0) >= startOfToday }
+            .sorted()
+
+        let recentPastDates = cleaningDates
+            .filter {
+                let startOfDate = calendar.startOfDay(for: $0)
+                if startOfDate >= startOfToday { return false }
+                let diff = calendar.dateComponents([.day], from: startOfDate, to: startOfToday).day ?? 0
+                return diff <= 2
             }
+            .sorted(by: >)
+
+        var result: [Date] = []
+        result.append(contentsOf: futureDates.prefix(2))
+        if result.count < 2 {
+            result.append(contentsOf: recentPastDates.prefix(2 - result.count))
+        }
+        return result
+    }
+
+    /// Returns the single most relevant date for map coloring.
+    /// Prefers the next future date; falls back to a recent past date (within 2 days).
+    func dateForColoring() -> Date? {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+
+        let nextFuture = cleaningDates
+            .filter { calendar.startOfDay(for: $0) >= startOfToday }
+            .sorted()
+            .first
+
+        if let future = nextFuture {
+            return future
         }
 
-        // 2. Sort ascending
-        let sorted = relevant.sorted()
+        let recentPast = cleaningDates
+            .filter {
+                let startOfDate = calendar.startOfDay(for: $0)
+                if startOfDate >= startOfToday { return false }
+                let diff = calendar.dateComponents([.day], from: startOfDate, to: startOfToday).day ?? 0
+                return diff <= 2
+            }
+            .sorted(by: >)
+            .first
 
-        // 3. Grab next 2
-        //    If they've all passed more than a week, it might be empty, but that's correct logic
-        let nextTwo = Array(sorted.prefix(2))
-        return nextTwo
+        return recentPast
     }
 }

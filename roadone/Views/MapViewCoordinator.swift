@@ -26,66 +26,61 @@ class MapViewCoordinator: NSObject, MKMapViewDelegate {
         return MKOverlayRenderer()
     }
 
-    // Excerpt from MapViewCoordinator
+    private enum CleaningUrgency {
+        case urgent      // today or 1-3 days away, or 1 day past
+        case upcoming    // 4-7 days away, or 2 days past
+        case none        // >7 days away, >2 days past, or no date
+    }
+
+    private func urgency(for section: Section) -> CleaningUrgency {
+        guard let date = section.dateForColoring() else { return .none }
+
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        let startOfDate = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: startOfToday, to: startOfDate).day ?? 0
+
+        if days >= 0 && days <= 3 {
+            return .urgent
+        } else if days >= 4 && days <= 7 {
+            return .upcoming
+        } else if days == -1 {
+            return .urgent
+        } else if days == -2 {
+            return .upcoming
+        }
+        return .none
+    }
+
     private func configurePolygonRenderer(_ renderer: MKPolygonRenderer, for overlay: MKOverlay) {
         if let polygon = overlay as? SectionPolygon, let section = polygon.section {
-            let nextDates = section.nextCleaningDates()
-            if let nextDate = nextDates.first {
-                let calendar = Calendar.current
-                let today = Date()
-                if let days = calendar.dateComponents([.day], from: today, to: nextDate).day {
-                    if days <= 3 {
-                        renderer.fillColor = UIColor.red.withAlphaComponent(0.5)
-                    } else if days <= 7 {
-                        renderer.fillColor = UIColor.orange.withAlphaComponent(0.5)
-                    } else {
-                        renderer.fillColor = UIColor.lightGray.withAlphaComponent(0.3)
-                    }
-                } else {
-                    // Default color
-                    renderer.fillColor = UIColor.lightGray.withAlphaComponent(0.3)
-                }
-            } else {
-                // If no upcoming/past-within-a-week date
+            switch urgency(for: section) {
+            case .urgent:
+                renderer.fillColor = UIColor.red.withAlphaComponent(0.5)
+            case .upcoming:
+                renderer.fillColor = UIColor.orange.withAlphaComponent(0.5)
+            case .none:
                 renderer.fillColor = UIColor.lightGray.withAlphaComponent(0.3)
             }
         } else {
             renderer.fillColor = UIColor.lightGray.withAlphaComponent(0.3)
         }
-        
+
         renderer.strokeColor = UIColor.white.withAlphaComponent(0.5)
         renderer.lineWidth = 1.0
     }
 
-
     private func configurePolylineRenderer(_ renderer: MKPolylineRenderer, for overlay: MKOverlay) {
-        // Get the section associated with this overlay
         if let polyline = overlay as? SectionPolyline, let section = polyline.section {
-            let nextDates = section.nextCleaningDates()
-            if let nextDate = nextDates.first {
-                let calendar = Calendar.current
-                let today = Date()
-                if let days = calendar.dateComponents([.day], from: today, to: nextDate).day {
-                    if days <= 3 {
-                        // Red color
-                        renderer.strokeColor = UIColor.red.withAlphaComponent(0.8)
-                    } else if days <= 7 {
-                        // Yellow color
-                        renderer.strokeColor = UIColor.yellow.withAlphaComponent(0.8)
-                    } else {
-                        // Light grey color
-                        renderer.strokeColor = UIColor.lightGray.withAlphaComponent(0.6)
-                    }
-                } else {
-                    // Default color
-                    renderer.strokeColor = UIColor.lightGray.withAlphaComponent(0.6)
-                }
-            } else {
-                // Default color
+            switch urgency(for: section) {
+            case .urgent:
+                renderer.strokeColor = UIColor.red.withAlphaComponent(0.8)
+            case .upcoming:
+                renderer.strokeColor = UIColor.yellow.withAlphaComponent(0.8)
+            case .none:
                 renderer.strokeColor = UIColor.lightGray.withAlphaComponent(0.6)
             }
         } else {
-            // Default color
             renderer.strokeColor = UIColor.lightGray.withAlphaComponent(0.6)
         }
 

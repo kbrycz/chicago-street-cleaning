@@ -91,43 +91,31 @@ struct ContentView: View {
         print("Loading cleaning dates from local JSON...")
 
         let calendar = Calendar.current
-        let today = Date()
+        let startOfToday = calendar.startOfDay(for: Date())
 
         for section in sections {
-            // Attempt to fetch the real list of dates from local JSON
             if let actualDates = LocalCleaningDatesLoader.getDates(forWard: section.ward,
                                                                   section: section.sectionNumber) {
-                // Sort is already done by loader, but let's confirm
                 let sortedDates = actualDates.sorted()
 
-                // Now filter so we keep:
-                // - Any date in the future
-                // - Or any date up to 7 days in the past from "today"
                 let validDates = sortedDates.filter {
-                    if $0 >= today {
+                    let startOfDate = calendar.startOfDay(for: $0)
+                    if startOfDate >= startOfToday {
                         return true
                     } else {
-                        // If it's in the past, keep only if within last 7 days
-                        if let diff = calendar.dateComponents([.day], from: $0, to: today).day,
-                           diff <= 7 {
-                            return true
-                        }
-                        return false
+                        let diff = calendar.dateComponents([.day], from: startOfDate, to: startOfToday).day ?? 0
+                        return diff <= 2
                     }
                 }
 
-                // We'll store all validDates in the `section.cleaningDates`.
-                // Section logic (`nextCleaningDates()`) will handle showing the "next two".
                 section.cleaningDates = validDates
 
                 print("Assigned local cleaning dates to Ward \(section.ward) Section \(section.sectionNumber): \(validDates.count) valid dates.")
             } else {
-                // If we didn't find a matching entry, just empty
                 section.cleaningDates = []
             }
         }
 
-        // Force the overlays to update so polygon colors refresh
         updateOverlays()
     }
 
